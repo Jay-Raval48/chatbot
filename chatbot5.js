@@ -10,7 +10,7 @@ const Chatbot = (function () {
   function loadStylesheet() {
     const link = document.createElement("link");
     link.rel = "stylesheet";
-    link.href = "https://cdn.jsdelivr.net/gh/parasrmehta/chatbot@main/chatbot.css"; // Adjust to correct CDN URL
+    link.href = "https://cdn.jsdelivr.net/gh/Jay-Raval48/chatbot@latest/chatbot.css"; // Adjust to correct CDN URL
     document.head.appendChild(link);
   }
 
