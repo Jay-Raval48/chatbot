@@ -16,7 +16,7 @@ const Chatbot = (function () {
     function loadStylesheet() {
         const link = document.createElement("link");
         link.rel = "stylesheet";
-        link.href = "https://cdn.jsdelivr.net/gh/Jay-Raval48/chatbot@latest/chatbot.css";
+        link.href = "https://cdn.jsdelivr.net/gh/Jay-Raval48/chatbot/chatbot.css";
         document.head.appendChild(link);
     }
 
