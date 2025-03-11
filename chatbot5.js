@@ -90,20 +90,29 @@ const Chatbot = (function () {
         messages.scrollTop = messages.scrollHeight;
     }
 
-async function sendMessage() {
-    const text = input.value.trim();
-    if (!text) return;
+    async function sendMessage() {
+        const text = input.value.trim();
+        if (!text) return;
 
-    addMessage(text, "user-message");
-    input.value = "";
+        addMessage(text, "user-message");
+        input.value = "";
 
-    try {
-        const response = await askGroq(text);
-        addMessage(response, "bot-message");
-    } catch (error) {
-        addMessage("Sorry, I couldn’t process your request.", "bot-message");
+        if (config.apiHost) {
+            try {
+                const response = await fetch(config.apiHost, {
+                    method: "POST",
+                    headers: { "Content-Type": "application/json" },
+                    body: JSON.stringify({ message: text }),
+                });
+                const data = await response.json();
+                addMessage(data.reply || "Sorry, no response.", "bot-message");
+            } catch {
+                addMessage("Error contacting server.", "bot-message");
+            }
+        } else {
+            addMessage("This is a simulated response!", "bot-message");
+        }
     }
-}
 
     // Grok API Integration
     async function askGroq(question) {
