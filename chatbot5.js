@@ -3,10 +3,10 @@ const Chatbot = (function () {
         buttonColor: "#007bff",
         title: "Fusion Assistant",
         welcomeMessage: "I am your Fusion Assistant, how may I help you?",
-        apiHost: null,
+        apiHost: null, // Not needed since we’re using Grok API directly
     };
 
-    // Hardcoded Grok API key (recommended for CSP compliance)
+    // Hardcoded Grok API key (consider securing this in production)
     const GROQ_API_KEY = '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';
 
     // DOM Elements
@@ -75,6 +75,9 @@ const Chatbot = (function () {
 
     function toggleChat() {
         chatWindow.classList.toggle("open");
+        if (chatWindow.classList.contains("open") && !messagesContainer.children.length) {
+            showOptions(); // Ensure tiles show when opening if container is empty
+        }
     }
 
     function addMessage(text, className) {
@@ -90,20 +93,21 @@ const Chatbot = (function () {
         messages.scrollTop = messages.scrollHeight;
     }
 
-async function sendMessage() {
-    const text = input.value.trim();
-    if (!text) return;
+    async function sendMessage() {
+        const text = input.value.trim();
+        if (!text) return;
 
-    addMessage(text, "user-message");
-    input.value = "";
+        addMessage(text, "user-message");
+        input.value = "";
 
-    try {
-        const response = await askGroq(text);
-        addMessage(response, "bot-message");
-    } catch (error) {
-        addMessage("Sorry, I couldn’t process your request.", "bot-message");
+        try {
+            const response = await askGroq(text);
+            addMessage(response, "bot-message");
+        } catch (error) {
+            addMessage("Sorry, I couldn’t process your request.", "bot-message");
+        }
     }
-}
+
     // Grok API Integration
     async function askGroq(question) {
         const GROQ_API_URL = 'https://api.groq.com/openai/v1/chat/completions';
@@ -128,7 +132,7 @@ async function sendMessage() {
             const data = await response.json();
             return data.choices[0].message.content;
         } catch (error) {
-            console.error('Error calling Groq API:', error);
+            console.error('Error calling Grok API:', error);
             throw error;
         }
     }
@@ -147,7 +151,7 @@ async function sendMessage() {
         if (!formattedText.startsWith('<')) {
             formattedText = `<p class="response-paragraph">${formattedText}</p>`;
         }
-        formattedText += '</span></div>';
+        formattedText += formattedText.includes('list-item') ? '</span></div>' : '';
         container.innerHTML = formattedText;
         return container;
     }
@@ -214,7 +218,6 @@ async function sendMessage() {
         });
     }
 
-    // Display Analysis Result
     function displayAnalysisResult(type, data) {
         const resultDiv = document.createElement('div');
         resultDiv.className = 'analysis-result';
@@ -270,10 +273,9 @@ async function sendMessage() {
         resultHtml += '</div>';
         resultDiv.innerHTML = resultHtml;
         messagesContainer.appendChild(resultDiv);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        messages.scrollTop = messages.scrollHeight;
     }
 
-    // Show Options
     function showOptions() {
         messagesContainer.innerHTML = '';
         addMessage(config.welcomeMessage, "bot-message");
@@ -297,9 +299,9 @@ async function sendMessage() {
         });
 
         messagesContainer.appendChild(tilesContainer);
+        messages.scrollTop = messages.scrollHeight;
     }
 
-    // Show PO Input Form
     function showPOInput() {
         messagesContainer.innerHTML = '';
         const inputContainer = document.createElement('div');
@@ -364,7 +366,8 @@ async function sendMessage() {
             header.innerHTML = config.title;
             header.appendChild(closeBtn);
             button.style.backgroundColor = config.buttonColor;
-            showOptions();
+            chatWindow.classList.add("open"); // Open chat by default to show tiles
+            showOptions(); // Show tiles immediately
         },
         destroy: () => {
             container.remove();
