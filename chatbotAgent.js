@@ -1,7 +1,5 @@
+// Import only the Groq client, which is browser-compatible
 import { ChatGroq } from "https://cdn.jsdelivr.net/npm/@langchain/groq@0.1.0/dist/index.js";
-import { Tool } from "https://cdn.jsdelivr.net/npm/langchain@0.3.0/tools/index.js";
-import { ChatPromptTemplate } from "https://cdn.jsdelivr.net/npm/@langchain/core@0.3.0/prompts/index.js";
-import { createReactAgent } from "https://cdn.jsdelivr.net/npm/@langchain/langgraph@0.2.0/prebuilt/index.js";
 
 // Load CSS dynamically
 function loadStylesheet() {
@@ -11,9 +9,8 @@ function loadStylesheet() {
     document.head.appendChild(link);
 }
 
-// Environment variables (for demo, hardcoded; in production, use a build tool like Vite)
-const GROQ_API_KEY = "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"; // From .env in production
-// LangSmith keys would be here too, but omitted for simplicity
+// Hardcoded API key (move to server or build tool in production)
+const GROQ_API_KEY = "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";
 
 const ChatbotAgent = (function () {
     const config = {
@@ -22,16 +19,18 @@ const ChatbotAgent = (function () {
         welcomeMessage: "I am your Fusion Assistant, how may I help you?",
     };
 
-    // DOM Elements
     let messagesContainer, chatWindow, ws;
 
-    // WebSocket setup for server communication (replace with REST if preferred)
+    // WebSocket setup for server communication
     function initWebSocket() {
         ws = new WebSocket("ws://localhost:3000"); // Adjust to your server URL
         ws.onmessage = (event) => {
             const data = JSON.parse(event.data);
             if (data.type === "reportResult") {
-                handleReportResult(data.result);
+                const dataRows = handleReportResult(data.result);
+                displayAnalysisResult(currentAnalysisType, dataRows); // Use stored analysis type
+            } else if (data.type === "error") {
+                addMessage(`Error: ${data.message}`, "bot-message");
             }
         };
         ws.onerror = (error) => console.error("WebSocket error:", error);
@@ -110,52 +109,13 @@ const ChatbotAgent = (function () {
         messages.scrollTop = messages.scrollHeight;
     }
 
-    // LangChain Setup
+    // Grok Client Setup
     const llm = new ChatGroq({
         apiKey: GROQ_API_KEY,
         model: "llama-3.3-70b-versatile",
     });
 
-    // Tools
-    class AskGroqTool extends Tool {
-        constructor() {
-            super();
-            this.name = "ask_groq";
-            this.description = "Ask a question to the Grok AI.";
-        }
-        async _call(input) {
-            const response = await llm.invoke([{ role: "user", content: input }]);
-            return response.content;
-        }
-    }
-
-    class RunReportToolProxy extends Tool {
-        constructor() {
-            super();
-            this.name = "run_report";
-            this.description = "Request an Oracle report from the server.";
-        }
-        async _call(input) {
-            const { reportPath, parameters } = JSON.parse(input);
-            return new Promise((resolve) => {
-                ws.send(JSON.stringify({ type: "runReport", reportPath, parameters }));
-                ws.onmessage = (event) => {
-                    const data = JSON.parse(event.data);
-                    if (data.type === "reportResult") {
-                        resolve(JSON.stringify(data.result));
-                    }
-                };
-            });
-        }
-    }
-
-    const tools = [new AskGroqTool(), new RunReportToolProxy()];
-    const prompt = ChatPromptTemplate.fromMessages([
-        ["system", "You are a helpful Fusion Assistant. Use markdown for responses."],
-        ["human", "{input}"],
-    ]);
-    const agent = createReactAgent({ llm, tools, prompt });
-
+    // Simplified Agent Logic
     async function sendMessage() {
         const text = input.value.trim();
         if (!text) return;
@@ -164,10 +124,19 @@ const ChatbotAgent = (function () {
         input.value = "";
 
         try {
-            const response = await agent.invoke({ input: text });
-            addMessage(response.output, "bot-message");
+            if (text.toLowerCase().includes("report") || text.toLowerCase().includes("po")) {
+                // For simplicity, assume PO Assisto-like behavior; refine with NLP if needed
+                addMessage("Please use the PO Assisto tile for reports.", "bot-message");
+            } else {
+                const response = await llm.invoke([
+                    { role: "system", content: "You are a helpful Fusion Assistant. Use markdown for responses." },
+                    { role: "user", content: text },
+                ]);
+                addMessage(response.content, "bot-message");
+            }
         } catch (error) {
             addMessage("Sorry, I couldn’t process your request.", "bot-message");
+            console.error(error);
         }
     }
 
@@ -215,6 +184,8 @@ const ChatbotAgent = (function () {
         messages.scrollTop = messages.scrollHeight;
     }
 
+    let currentAnalysisType = null; // Store the current analysis type for WebSocket response
+
     function showPOInput() {
         messagesContainer.innerHTML = "";
         const inputContainer = document.createElement("div");
@@ -253,10 +224,8 @@ const ChatbotAgent = (function () {
                 try {
                     const parameters = { p_inventory_item_id: itemNumber };
                     const reportPath = "/Custom/SCM AI Agent/PO_RM.xdo";
-                    const input = JSON.stringify({ reportPath, parameters });
-                    const response = await tools[1]._call(input); // Call RunReportToolProxy
-                    const reportData = JSON.parse(response);
-                    displayAnalysisResult(analysis.type, reportData);
+                    currentAnalysisType = analysis.type; // Store for WebSocket response
+                    ws.send(JSON.stringify({ type: "runReport", reportPath, parameters }));
                 } catch (error) {
                     addMessage("Error: " + error.message, "bot-message");
                 } finally {
@@ -280,12 +249,11 @@ const ChatbotAgent = (function () {
             .filter((row) => row.trim())
             .map((row) => row.split(",").map((cell) => cell.replace(/^"|"$/g, "")));
         const headers = rows[0];
-        const dataRows = rows.slice(1).map((row) => {
+        return rows.slice(1).map((row) => {
             const rowData = {};
             headers.forEach((header, i) => (rowData[header] = row[i] || ""));
             return rowData;
         });
-        return dataRows;
     }
 
     function displayAnalysisResult(type, data) {
