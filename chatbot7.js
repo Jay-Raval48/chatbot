@@ -158,7 +158,7 @@ const Chatbot = (function () {
             header.innerHTML = config.title;
             header.appendChild(closeBtn);
             button.style.backgroundColor = config.buttonColor;
-            chatWindow.classList.add("open"); // Open chat by default
+            chatWindow.classList.add("open"); // Open chat by defaulta
             addMessage(config.welcomeMessage, "bot-message");
         },
         destroy: () => {
