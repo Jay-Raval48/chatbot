@@ -97,6 +97,7 @@ const Chatbot = (function () {
         input.value = "";
 
         try {
+            console.log('Sending query:', text); // Log the input
             const response = await askAgent(text);
             addMessage(response, "bot-message");
         } catch (error) {
@@ -107,18 +108,22 @@ const Chatbot = (function () {
 
     // LangChain Agent Integration
     async function askAgent(question) {
-        const AGENT_API_URL = 'http://localhost:8000/query/';
+        const AGENT_API_URL = 'http://localhost:8000/query/'; // Update for cloud if needed
         try {
+            console.log('Request payload:', JSON.stringify({ query: question })); // Log payload
             const response = await fetch(AGENT_API_URL, {
                 method: 'POST',
-                mode: 'no-cors',
                 headers: {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({ query: question }),
             });
-            if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`HTTP error! status: ${response.status}, detail: ${errorText}`);
+            }
             const data = await response.json();
+            console.log('Response data:', data); // Log response
             return data.response;
         } catch (error) {
             console.error('Error calling LangChain Agent:', error);
@@ -132,7 +137,7 @@ const Chatbot = (function () {
         let formattedText = text
             .replace(/^(\*|-)\s/gm, '<div class="list-item"><span class="bullet">•</span><span class="list-content">')
             .replace(/\n(\*|-)\s/gm, '</span></div><div class="list-item"><span class="bullet">•</span><span class="list-content">')
-            .replace(/\n\n/g, '</p><p class="response-paragraph">')
+            .replace(/\n\n/of, '</p><p class="response-paragraph">')
             .replace(/```(\w+)?\n([\s\S]*?)```/g, '<pre class="code-block"><code>$2</code></pre>')
             .replace(/`([^`]+)`/g, '<code class="inline-code">$1</code>')
             .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>');
