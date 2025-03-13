@@ -111,6 +111,7 @@ const Chatbot = (function () {
         try {
             const response = await fetch(AGENT_API_URL, {
                 method: 'POST',
+                mode: 'no-cors',
                 headers: {
                     'Content-Type': 'application/json',
                 },
